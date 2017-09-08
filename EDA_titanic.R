@@ -1,8 +1,10 @@
 library(tidyverse)
 library(randomForest)
+library(ggthemes)
 
-
+######################################################
 # Reading in the data
+######################################################
 
 train <- read.csv("train.csv", stringsAsFactors = F)
 test <- read.csv("test.csv", stringsAsFactors = F)
@@ -20,11 +22,60 @@ full <- full %>% mutate(dset = factor(dset))
 
 str(full)
 
-
+######################################################
 # Feature engineering
+######################################################
 
 full$Title <- gsub('(.*, )|(\\..*)', '', full$Name)
 
-# Missing values imputation
+# Show title counts by sex
+table(full$Sex, full$Title)
 
+# Titles with very low cell counts to be combined to "rare" level
+rare_title <- c('Dona', 'Lady', 'the Countess','Capt', 'Col', 'Don', 
+                'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer')
+
+
+# Also reassign mlle, ms, and mme accordingly
+full$Title[full$Title == 'Mlle']        <- 'Miss' 
+full$Title[full$Title == 'Ms']          <- 'Miss'
+full$Title[full$Title == 'Mme']         <- 'Mrs' 
+full$Title[full$Title %in% rare_title]  <- 'Rare Title'
+
+table(full$Sex, full$Title)
+
+
+# Finally, grab surname from passenger name
+full$Surname <- sapply(full$Name, function(x) strsplit(x, split = '[,.]')[[1]][1])
+
+# Check how many distinct surnames we have
+nlevels(factor(full$Surname))
+
+# Create a family size variable including the passenger themselves
+full$Fsize <- full$SibSp + full$Parch + 1
+
+table(full$Fsize)
+
+# Create a family variable 
+full$Family <- paste(full$Surname, full$Fsize, sep='_')
+
+# Family size vs. survival
+ggplot(full[(full$dset=="train"),], aes(x = Fsize, fill = factor(Survived))) +
+  geom_bar(stat='count', position='dodge') +
+  scale_x_continuous(breaks=c(1:11)) +
+  labs(x = 'Family Size', y = 'Count') +
+  theme_few()
+
+head(full$Cabin, 30)
+
+#TODO
+strsplit(full$Cabin[2],NULL)
+
+######################################################
+# Missing values imputation
+######################################################
+
+
+######################################################
 # Modelling
+######################################################
